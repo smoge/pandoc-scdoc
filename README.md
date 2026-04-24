@@ -46,8 +46,6 @@ keywords: [oscillator, test]
 
 ### Headings
 
-> *H1 "Description" hit `description::` — 
-> anything else, `section::`, that's the verdict.*
 
 Level-1 headings with SCDoc structural names (`# Description`,
 `# Class Methods`, `# Instance Methods`, `# Examples`) map to the
@@ -61,7 +59,7 @@ SCDoc's per-method tags have no direct markdown equivalent, so we use
 
 ```markdown
 ## ar {.method name="ar" args="freq, phase, mul, add"}
-Audio-rate thang.
+Audio-rate.
 
 ### freq {.argument}
 Frequency in hzzz.
