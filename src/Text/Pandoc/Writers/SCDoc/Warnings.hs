@@ -24,7 +24,7 @@ formatSCDocWarning (SCDocWarning k msg) = "[" <> k <> "] " <> msg
 warn :: Text -> Text -> SCDocWarning
 warn = SCDocWarning
 
--- runs all checks over the document and collects warnings
+-- runs all checks
 collectWarnings :: Pandoc -> [SCDocWarning]
 collectWarnings (Pandoc _meta blocks) =
   concatMap checkBlock blocks

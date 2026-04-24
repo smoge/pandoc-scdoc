@@ -1,12 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Text.Pandoc.Writers.SCDoc
-  ( -- * Pandoc writer interface
+  (
     writeSCDoc
-    -- * Pure entry points
   , writeSCDocPure
   , writeSCDocWithWarnings
-    -- * Diagnostics
   , SCDocWarning (..)
   , formatSCDocWarning
   ) where
