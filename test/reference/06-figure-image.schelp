@@ -1,0 +1,14 @@
+title:: FigureImage
+summary:: Tests image and figure rendering
+
+description::
+
+A standalone figure with caption:
+
+image::images/screenshot.png#Screenshot of the scope::
+
+A standalone image with no alt text (not promoted to figure):
+
+image::images/no-caption.png::
+
+Text with an image::images/logo.png#inline logo:: image.

@@ -1,0 +1,137 @@
+#+TITLE: Comprehensive Org Test
+#+SUMMARY: Exercises all org constructs supported by the SCDoc writer.
+#+CATEGORIES: Reference>Tests
+#+RELATED: Classes/SinOsc
+#+REDIRECT: Classes/OldComprehensive
+#+KEYWORD: org
+#+KEYWORD: test
+#+KEYWORD: comprehensive
+
+* Description
+
+A paragraph with /emphasis/, *strong*, and =inline code=.
+
+Inline math: $x^2 + y^2 = r^2$.
+
+Display math:
+
+\[\int_0^\infty f(x)\,dx\]
+
+An [[https://supercollider.github.io][external link]].
+
+An [[#target-section][internal link]] to the section below.
+
+* Target Section
+:PROPERTIES:
+:CUSTOM_ID: target-section
+:END:
+
+This is the target of the internal link above.
+
+** Subsection
+
+An H2 outside a method section becomes a subsection.
+
+*** Subsubsection
+
+An H3 becomes a subsubsection.
+
+* Class Methods
+
+** ar, kr
+
+A band-limited oscillator at audio or control rate.
+
+*** freq
+
+Frequency in Hz.
+
+*** mul
+
+Amplitude multiplier, default =1=.
+
+*** Returns
+
+A UGen.
+
+*** Discussion
+
+Use =ar= for audio-rate and =kr= for control-rate signals.
+
+** offset
+
+Apply a DC offset.
+
+*** amount
+
+The offset amount.
+
+* Instance Methods
+
+** play
+
+Play on the default server.
+
+*** server
+
+The server to play on.
+
+*** Returns
+
+A Synth.
+
+* Examples
+
+A code block:
+
+#+BEGIN_SRC
+{ SinOsc.ar(440, 0, 0.1) }.play
+#+END_SRC
+
+A teletype block:
+
+#+BEGIN_SRC teletype
+sclang -e 'Server.default.boot'
+#+END_SRC
+
+A note:
+
+#+BEGIN_note
+Remember to boot the server first.
+#+END_note
+
+A warning:
+
+#+BEGIN_warning
+This UGen is not band-limited.
+#+END_warning
+
+A raw SCDoc block:
+
+#+BEGIN_EXPORT schelp
+note:: This passes through unchanged. ::
+#+END_EXPORT
+
+A table:
+
+| Name | Value |
+|------+-------|
+| freq |   440 |
+| amp  |   0.5 |
+
+A definition list:
+
+- Term A :: Definition for A.
+- Term B :: Definition for B.
+
+A nested list:
+
+- outer 1
+  - inner a
+  - inner b
+- outer 2
+
+An image:
+
+#+CAPTION: A waveform
+[[file:images/waveform.png]]

@@ -1,0 +1,22 @@
+title:: SomeClass
+summary:: Demonstrates structural sections
+
+description::
+
+An introductory paragraph about this class.
+
+classmethods::
+
+method:: new
+
+Creates an instance.
+
+instancemethods::
+
+method:: play
+
+Plays the synth.
+
+examples::
+
+Here are some examples.

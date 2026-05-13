@@ -1,0 +1,146 @@
+title:: Comprehensive Org Test
+summary:: Exercises all org constructs supported by the SCDoc writer.
+categories:: Reference>Tests
+related:: Classes/SinOsc
+redirect:: Classes/OldComprehensive
+
+description::
+
+keyword:: org
+keyword:: test
+keyword:: comprehensive
+
+A paragraph with emphasis::emphasis::, strong::strong::, and code::inline code::.
+
+Inline math: math::x^2 + y^2 = r^2::.
+
+Display math:
+
+
+math::
+\int_0^\infty f(x)\,dx
+::
+
+
+An link::https://supercollider.github.io##external link::.
+
+An link::#target-section#internal link:: to the section below.
+
+section:: Target Section
+
+anchor::target-section::
+
+This is the target of the internal link above.
+
+subsection:: Subsection
+
+An H2 outside a method section becomes a subsection.
+
+subsubsection:: Subsubsection
+
+An H3 becomes a subsubsection.
+
+classmethods::
+
+method:: ar, kr
+
+A band-limited oscillator at audio or control rate.
+
+argument:: freq
+
+Frequency in Hz.
+
+argument:: mul
+
+Amplitude multiplier, default code::1::.
+
+returns::
+
+A UGen.
+
+discussion::
+
+Use code::ar:: for audio-rate and code::kr:: for control-rate signals.
+
+method:: offset
+
+Apply a DC offset.
+
+argument:: amount
+
+The offset amount.
+
+instancemethods::
+
+method:: play
+
+Play on the default server.
+
+argument:: server
+
+The server to play on.
+
+returns::
+
+A Synth.
+
+examples::
+
+A code block:
+
+code::
+{ SinOsc.ar(440, 0, 0.1) }.play
+::
+
+A teletype block:
+
+teletype::
+sclang -e 'Server.default.boot'
+::
+
+A note:
+
+note::
+Remember to boot the server first.
+::
+
+A warning:
+
+warning::
+This UGen is not band-limited.
+::
+
+A raw SCDoc block:
+
+note:: This passes through unchanged. ::
+
+
+A table:
+
+table::
+## Name || Value
+## freq || 440
+## amp || 0.5
+::
+
+A definition list:
+
+definitionlist::
+## Term A
+|| Definition for A.
+## Term B
+|| Definition for B.
+::
+
+A nested list:
+
+list::
+## outer 1
+## inner a
+## inner b
+## outer 2
+::
+
+An image:
+
+image::images/waveform.png#A waveform::

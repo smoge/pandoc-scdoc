@@ -1,0 +1,32 @@
+title:: LFPulse
+summary:: Pulse oscillator
+categories:: UGens>Generators>Deterministic, UGens>Oscillators
+related:: Classes/LFSaw
+
+description::
+
+A non-band-limited pulse oscillator. Outputs a high value of one and a low value of zero.
+
+classmethods::
+
+method:: ar, kr
+
+Keyword argument frequency.
+
+argument:: freq
+
+Frequency in Hz.
+
+argument:: iphase
+
+Initial phase offset.
+
+returns::
+
+A UGen.
+
+examples::
+
+code::
+{ LFPulse.ar(400) }.play
+::

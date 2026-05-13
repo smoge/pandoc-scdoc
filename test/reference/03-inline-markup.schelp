@@ -1,0 +1,14 @@
+title:: InlineMarkup
+summary:: Tests inline tags
+
+description::
+
+Plain text with emphasis::emphasis test::, strong::strong test::, and code::code test::.
+
+A soft::strikethrough:: word maps to soft.
+
+Inline math: math::x^2 + y^2::
+
+A link::Classes/SinOsc##link to SinOsc:: and a link::Classes/SinOsc#*ar#link with anchor::.
+
+An link::https://supercollider.github.io##external link::.

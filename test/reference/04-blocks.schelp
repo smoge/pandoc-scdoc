@@ -1,0 +1,40 @@
+title:: BlockElements
+summary:: Tests block-level tags
+
+description::
+
+A bullet list:
+
+list::
+## first item
+## second item
+## third item
+::
+
+A numbered list:
+
+numberedlist::
+## one
+## two
+## three
+::
+
+A code block:
+
+code::
+SinOsc.ar(440, 0, 0.1)
+::
+
+A note:
+
+note::
+This is important information.
+::
+
+A table:
+
+table::
+## Name || Value
+## freq || 440
+## amp || 0.5
+::

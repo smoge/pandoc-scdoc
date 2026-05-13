@@ -1,0 +1,182 @@
+#+TITLE: Org-Mode Format Example
+#+SUMMARY: Pandoc org-mode input to SCDoc conversion example.
+#+CATEGORIES: Reference
+#+KEYWORD: org
+#+KEYWORD: pandoc
+#+KEYWORD: scdoc
+
+* Description
+
+This file demonstrates how Pandoc org-mode is converted to SCDoc: headings map
+to SCDoc structure, method sections become method tags, links are resolved to
+their anchors, and raw SCDoc blocks are passed through unchanged.
+
+Run it:
+
+#+BEGIN_SRC teletype
+pandoc2schelp -f org example.org > example.schelp
+#+END_SRC
+
+The goal is not to reproduce SCDoc character-for-character. Instead, help files
+are authored in a Pandoc-supported format and the writer translates them into
+SCDoc.
+
+
+SCDoc metadata fields are set with =#+KEY: value= lines at the very top
+of the file, before any heading. The recognized fields are =TITLE=,
+=SUMMARY=, =CATEGORIES=, =RELATED=, =REDIRECT=, and =KEYWORD=. Repeat
+=#+KEYWORD:= once per keyword. Unrecognized =#+= keys are silently
+ignored.
+
+H1 headings named =Description=, =Class Methods=, =Instance Methods=, or
+=Examples= become SCDoc structural tags; other H1 headings become
+=section::=.
+
+Inline markup is preserved: /emphasis/, *strong*, and =inline code=.
+
+Org-mode has no built-in strikethrough syntax that Pandoc recognizes as a
+distinct inline element. If strikethrough is required, use raw SCDoc
+passthrough; the Examples section shows how.
+
+
+Inline math: $x^2 + y^2 = r^2$.
+
+Display math:
+
+\[\int_0^\infty f(x)\,dx\]
+
+An [[https://supercollider.github.io][external link]].
+
+An [[#target-section][internal link]] targeting a heading below.
+
+* Target Section
+:PROPERTIES:
+:CUSTOM_ID: target-section
+:END:
+
+This heading is the landing pad for the internal link above. The
+=:CUSTOM_ID:= property becomes the heading identifier in Pandoc's AST.
+Because this document also links to =#target-section=, the writer emits
+=anchor::target-section::= after the section tag.
+
+** Subsection
+
+An H2 outside a method section becomes a =subsection::=.
+
+*** Subsubsection
+
+An H3, and any deeper heading level, becomes a =subsubsection::=.
+
+* Class Methods
+
+Inside this section, the hierarchy starts doing work. H2 headings become
+SCDoc methods. H3 headings become arguments, unless the heading name is a
+method-local keyword such as =Returns= or =Discussion=.
+
+** ar, kr
+
+Multiple names, comma-separated, stay on the same =method::= line.
+
+*** freq
+
+Frequency in Hz.
+
+*** phase
+
+Initial phase offset in radians.
+
+*** Returns
+
+A heading named =Returns= becomes =returns::=.
+
+A UGen.
+
+*** Discussion
+
+A heading named =Discussion= becomes =discussion::=.
+
+Notes on the signal's phase behavior at audio rate.
+
+** offset
+
+This H2 is inferred as =method:: offset=.
+
+*** amount
+
+The offset amount.
+
+* Instance Methods
+
+** play
+
+This H2 is inferred as =method:: play=.
+
+*** server
+
+The server to play on.
+
+*** group
+
+The group to add the synth to.
+
+* Examples
+
+A code block:
+
+#+BEGIN_SRC
+{ SinOsc.ar(440, 0, 0.1) }.play
+#+END_SRC
+
+A teletype block. The language tag =teletype= is preserved as the SCDoc
+block type:
+
+#+BEGIN_SRC teletype
+sclang -e 'Server.default.boot'
+#+END_SRC
+
+A note block, mapped to =note::=:
+
+#+BEGIN_note
+The server must be booted before any sound can be produced.
+#+END_note
+
+A warning block, mapped to =warning::=:
+
+#+BEGIN_warning
+Naive oscillators can alias at high frequencies.
+#+END_warning
+
+A raw SCDoc block passed through verbatim:
+
+#+BEGIN_EXPORT schelp
+note::
+This block passes through unchanged.
+::
+#+END_EXPORT
+
+A table:
+
+| Name | Value |
+|------+-------|
+| freq |   440 |
+| amp  |   0.5 |
+
+
+A nested list. SCDoc does not support nested lists, so inner items are promoted
+to siblings of their outer items.
+
+- outer 1
+  - inner a
+  - inner b
+- outer 2
+
+A definition list, using org's =- Term :: Definition= syntax:
+
+- Term A :: Definition for A.
+- Term B :: Definition for B.
+
+An image. Use the =file:= prefix so Pandoc recognizes it as an image,
+and add =#+CAPTION:= for the SCDoc image label:
+
+#+CAPTION: A waveform
+[[file:images/waveform.png]]

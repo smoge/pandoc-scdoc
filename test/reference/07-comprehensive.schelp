@@ -1,0 +1,159 @@
+title:: Comprehensive
+summary:: All SCDoc elements in one reference file
+categories:: Tests, Tests>Reference
+related:: Classes/SinOsc, Classes/LFSaw
+redirect:: OldName
+
+description::
+
+keyword:: comprehensive
+keyword:: reference
+
+A paragraph with emphasis::emphasis::, strong::strong::, code::inline code::, and soft::strikethrough::.
+
+Single 'quoted' and double "quoted" words.
+
+Inline math: math::x^2 + y^2 = r^2::.
+
+Display math:
+
+
+math::
+\int_0^\infty f(x)\,dx
+::
+
+
+A raw SCDoc inline: strong::pass-through::.
+
+An link::#target-section#internal link::.
+
+A link::Classes/SinOsc##link stripping HelpSource prefix::.
+
+A link::Classes/SinOsc##link with extension stripped::.
+
+An link::https://supercollider.github.io##external link::.
+
+An link::file:///usr/share/doc/supercollider/index.html##external file link::.
+
+section:: Target Section
+
+anchor::target-section::
+
+This section is the target of the internal link above.
+
+subsection:: Subsection
+
+An H2 becomes a subsection.
+
+subsubsection:: Subsubsection
+
+An H3 (and any deeper level) becomes a subsubsection.
+
+subsection:: Subsection with Anchor
+
+anchor::my-subsec-anchor::
+
+An H2 with an code::anchor=:: attribute emits an anchor tag after the subsection tag.
+
+classmethods::
+
+method:: ar, kr
+
+Method with multiple comma-separated names.
+
+argument:: freq
+
+Frequency in Hz.
+
+argument:: width
+
+Pulse width, from 0 to 1.
+
+returns:: a UGen
+
+Returns the constructed UGen.
+
+method:: setter
+
+A setter method; the trailing underscore is stripped from the name.
+
+discussion::
+
+Discussion of the class methods.
+
+private:: privateHelper
+
+Internal helper; not part of the public API.
+
+copymethod:: MyClass someMethod
+
+Copied from MyClass.
+
+classtree:: MyTree
+
+Shows the class tree rooted at MyTree.
+
+anchor::my-anchor::
+
+Anchor point for internal links.
+
+instancemethods::
+
+method:: play
+
+Plays the synth.
+
+argument:: server
+
+The server to play on.
+
+examples::
+
+A teletype code block:
+
+teletype::
+sclang -e 'Server.default.boot'
+::
+
+A math code block:
+
+math::
+E = mc^2
+::
+
+A raw SCDoc block (passed through as-is):
+
+note:: This block passes through unchanged. ::
+
+A note (block quote):
+
+note::
+This is a note.
+::
+
+A warning div (requires Pandoc’s code::fenced_divs:: extension):
+
+warning::
+This is a warning.
+::
+
+A definition list:
+
+definitionlist::
+## Term A
+|| Definition A.
+## Term B
+|| Definition B1.
+## Term B
+|| Definition B2.
+::
+
+A line block:
+
+Line one
+Line two
+Line three
+
+An image with a HelpSource prefix stripped:
+
+image::images/figure.png#A figure caption::

@@ -1,0 +1,21 @@
+
+
+classmethods::
+
+method:: ar, kr
+
+Generate a signal.
+
+argument:: freq
+
+Frequency in Hz.
+
+returns::
+
+A UGen.
+
+examples::
+
+code::
+{ SinOsc.ar(440) }.play
+::

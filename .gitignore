@@ -1,0 +1,6 @@
+.stack-work/
+*~
+.gitignore
+stack.yaml.lock
+dist-newstyle/
+drafts/
