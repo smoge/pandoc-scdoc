@@ -16,7 +16,10 @@ Nested lists:
 
 list::
 ## outer 1
+
+list::
 ## inner a
 ## inner b
+::
 ## outer 2
 ::

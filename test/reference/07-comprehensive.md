@@ -67,7 +67,9 @@ Frequency in Hz.
 
 Pulse width, from 0 to 1.
 
-### Returns {text="a UGen"}
+### Returns
+
+a UGen
 
 Returns the constructed UGen.
 
@@ -122,7 +124,9 @@ E = mc^2
 A raw SCDoc block (passed through as-is):
 
 ```schelp
-note:: This block passes through unchanged. ::
+note::
+This block passes through unchanged.
+::
 ```
 
 A note (block quote):

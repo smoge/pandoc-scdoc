@@ -5,8 +5,10 @@ cabal-version: 2.2
 -- see: https://github.com/sol/hpack
 
 name:           pandoc-scdoc
-version:        0.1.0.0
+version:        0.2.0.0
+synopsis:       Pandoc reader and writer for SuperCollider's SCDoc help format
 description:    Please see the README on GitHub at <https://github.com/smoge/pandoc-scdoc>
+category:       Text
 homepage:       https://github.com/smoge/pandoc-scdoc#readme
 bug-reports:    https://github.com/smoge/pandoc-scdoc/issues
 author:         smoge
@@ -17,6 +19,7 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
+extra-doc-files:
     CHANGELOG.md
 data-files:
     data/templates/default.schelp
@@ -27,6 +30,7 @@ source-repository head
 
 library
   exposed-modules:
+      Text.Pandoc.Readers.SCDoc
       Text.Pandoc.Writers.SCDoc
   other-modules:
       Paths_pandoc_scdoc
@@ -37,13 +41,39 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
-    , containers
-    , doclayout
-    , doctemplates
-    , mtl
-    , pandoc
-    , pandoc-types
-    , text
+    , containers >=0.6 && <0.8
+    , doclayout ==0.5.*
+    , doctemplates ==0.11.*
+    , mtl >=2.2 && <2.4
+    , pandoc >=3.7 && <3.10
+    , pandoc-types ==1.23.*
+    , parsec ==3.1.*
+    , scdoc-internals
+    , text >=2.0 && <2.2
+  default-language: Haskell2010
+
+library scdoc-internals
+  exposed-modules:
+      Text.Pandoc.Readers.SCDoc.Lexer
+      Text.Pandoc.Readers.SCDoc.Parser
+      Text.Pandoc.SCDoc.Link
+  other-modules:
+      Paths_pandoc_scdoc
+  autogen-modules:
+      Paths_pandoc_scdoc
+  hs-source-dirs:
+      src-internal
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6 && <0.8
+    , doclayout ==0.5.*
+    , doctemplates ==0.11.*
+    , mtl >=2.2 && <2.4
+    , pandoc >=3.7 && <3.10
+    , pandoc-types ==1.23.*
+    , parsec ==3.1.*
+    , text >=2.0 && <2.2
   default-language: Haskell2010
 
 executable pandoc-scdoc
@@ -57,23 +87,31 @@ executable pandoc-scdoc
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
-    , containers
-    , doclayout
-    , doctemplates
-    , mtl
-    , pandoc
+    , containers >=0.6 && <0.8
+    , doclayout ==0.5.*
+    , doctemplates ==0.11.*
+    , mtl >=2.2 && <2.4
+    , pandoc >=3.7 && <3.10
     , pandoc-scdoc
-    , pandoc-types
-    , text
+    , pandoc-types ==1.23.*
+    , parsec ==3.1.*
+    , text >=2.0 && <2.2
   default-language: Haskell2010
 
 test-suite pandoc-scdoc-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      CorpusAuditSpec
+      CorpusSpec
+      LexerSpec
+      ParserSpec
       PropertySpec
+      ReaderSpec
       ReferenceSpec
-      SCDocSpec
+      TestSupport
+      WriterMetadataSpec
+      WriterSpec
       Paths_pandoc_scdoc
   autogen-modules:
       Paths_pandoc_scdoc
@@ -85,13 +123,15 @@ test-suite pandoc-scdoc-test
     , base >=4.7 && <5
     , containers
     , directory
-    , doclayout
+    , doclayout ==0.5.*
     , doctemplates
     , filepath
     , hspec >=2.10
-    , mtl
+    , mtl >=2.2 && <2.4
     , pandoc
     , pandoc-scdoc
-    , pandoc-types
-    , text
+    , pandoc-types ==1.23.*
+    , parsec ==3.1.*
+    , scdoc-internals
+    , text >=2.0 && <2.2
   default-language: Haskell2010

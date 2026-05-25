@@ -1,12 +1,34 @@
 # pandoc-scdoc
 
-A [Pandoc](https://pandoc.org/) writer for SCDoc, SuperCollider's help file
-format (`.schelp`).
+A [Pandoc](https://pandoc.org/) writer and reader for SCDoc, SuperCollider's
+help file format (`.schelp`).
 
 Write the help file in a Pandoc format. Let the writer lower it into SCDoc.
 
-Status: experimental. Tested with Markdown, RST, and org-mode input. Different
-doors, same room.
+Status: experimental. Tested with Markdown, RST, org-mode, and SCDoc input.
+Different doors, same room.
+
+The library exposes `Text.Pandoc.Readers.SCDoc` for parsing `.schelp` files
+back into a Pandoc AST. The reader is a token-based parser layered on the
+SCDoc lexer that mirrors upstream's [`SCDoc.l`/`SCDoc.y`][upstream-scdoc]
+grammar. It parses every file in SuperCollider's `HelpSource` corpus
+(1137/1137) and 1136 of those round-trip identically under
+read -> write -> read (the residual is a documented leading-whitespace
+quirk in `Overviews/JITLib.schelp`).
+
+```haskell
+import Text.Pandoc.Readers.SCDoc
+
+-- In PandocMonad
+doc    <- readSCDoc def text
+
+-- Pure entry point; failures surface as Left.
+case readSCDocPure text of
+  Left  err -> ...
+  Right pd  -> ...
+```
+
+[upstream-scdoc]: https://github.com/supercollider/supercollider/tree/develop/SCDoc
 
 Other Pandoc-supported formats may work to the extent their AST maps to the
 supported nodes. The mapping is not one-to-one. SCDoc has its own constraints:
@@ -15,22 +37,56 @@ don't go deep. Not a mirror, a bridge.
 
 ## Build and run
 
+With Just:
+```sh
+just cabal-build
+just run-md
+just run-org
+just run-rst
+```
+
 With Stack:
 ```sh
 stack build
 mkdir -p output
-stack run -- examples/example.md > output/markdown.schelp
-stack run -- -f org examples/example.org > output/org.schelp
-stack run -- -f rst examples/example.rst > output/rst.schelp
+stack exec pandoc-scdoc -- examples/example.md > output/markdown.schelp
+stack exec pandoc-scdoc -- -f org examples/example.org > output/org.schelp
+stack exec pandoc-scdoc -- -f rst examples/example.rst > output/rst.schelp
 ```
 
 With Cabal:
 ```sh
-cabal build
+cabal build exe:pandoc-scdoc
 mkdir -p output
-cabal run pandoc-scdoc -- examples/example.md > output/markdown.schelp
-cabal run pandoc-scdoc -- -f org examples/example.org > output/org.schelp
-cabal run pandoc-scdoc -- -f rst examples/example.rst > output/rst.schelp
+bin="$(cabal list-bin exe:pandoc-scdoc)"
+"$bin" examples/example.md > output/markdown.schelp
+"$bin" -f org examples/example.org > output/org.schelp
+"$bin" -f rst examples/example.rst > output/rst.schelp
+```
+
+## Tests
+
+Run the normal suite with:
+
+```sh
+cabal test pandoc-scdoc-test
+```
+
+Corpus smoke tests are not part of the normal suite. The `just` corpus
+recipes set `SCDOC_HELPSOURCE` from the `helpsource` variable in `justfile`;
+override it in the environment for a different local SuperCollider
+`HelpSource` checkout:
+
+```sh
+just stack-corpus-test
+SCDOC_HELPSOURCE=/path/to/HelpSource just stack-corpus-test
+```
+
+The full audit is opt-in:
+
+```sh
+just audit
+SCDOC_HELPSOURCE=/path/to/HelpSource just audit
 ```
 
 ## Install and use as a command-line tool
@@ -50,8 +106,15 @@ Once installed:
 pandoc-scdoc input.md > output.schelp
 pandoc-scdoc -f rst input.rst > output.schelp
 pandoc-scdoc -f org input.org > output.schelp
+pandoc-scdoc -f schelp input.schelp > normalized.schelp
 cat input.md | pandoc-scdoc > output.schelp
 ```
+
+`-f schelp` (alias `-f scdoc`) routes input through the SCDoc reader instead
+of Pandoc's built-in readers. With the writer on the other side, this gives
+you read -> write normalization: anchor placement, link canonicalization,
+method/argument inference, and whitespace are re-emitted in writer-canonical
+form.
 
 ## Examples
 
@@ -438,22 +501,27 @@ No translation, no re-writing. Passed through as-is.
 
 Bullet and ordered lists become SCDoc `list::` and `numberedlist::` blocks.
 
-Nested lists flatten to sibling entries — SCDoc has no nested-list syntax. If
-the source goes down a level, the output brings it back up.
+Nested lists are preserved. SCDoc's grammar permits a full block body per
+item (`listbody: HASHES body` in `SCDoc.y`), so a nested `BulletList` or
+`OrderedList` inside an item renders as a nested `list::` / `numberedlist::`
+block — separated from any sibling content in the same item by a blank line.
+Multi-block items (e.g. a paragraph followed by a code block) round-trip the
+same way.
 
 ## Known limitations
 
 The writer favors valid SCDoc over preserving every Pandoc detail. Keep these
 constraints in mind when choosing an input format:
 
-- Nested lists are flattened. If Markdown nests a list inside another list, the
-  writer emits the nested items as sibling entries at the top level.
 - Modal tags cannot nest. Inline combinations such as code inside strong
   emphasis are rendered with the outer style where possible, with the inner text
   flattened.
-- Tables are simple grids. Multi-line cells, row spans, column spans, and rich
-  block content inside table cells may be collapsed or omitted because SCDoc has
-  no direct equivalent.
+- Tables have no row or column spans. SCDoc's `table::` grammar has no
+  syntax for either, so `RowSpan` / `ColSpan` attributes greater than 1 are
+  flattened to a single cell. Block-level content inside a cell (multiple
+  paragraphs, code blocks, nested lists, even a nested `table::`) IS
+  preserved — the writer switches the row to a multi-line layout when any
+  cell needs more than an inline rendering.
 - Some unsupported nodes are silent. If an input feature has no semantic SCDoc
   equivalent, and is not raw SCDoc text, the writer may omit it so the generated
   `.schelp` file still compiles in the SuperCollider IDE.

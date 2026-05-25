@@ -109,7 +109,9 @@ This UGen is not band-limited.
 A raw SCDoc block:
 
 #+BEGIN_EXPORT schelp
-note:: This passes through unchanged. ::
+note::
+This passes through unchanged.
+::
 #+END_EXPORT
 
 A table:

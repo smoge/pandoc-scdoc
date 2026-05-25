@@ -30,6 +30,10 @@ import qualified Text.DocLayout             as DL
 import           Text.Pandoc.Class          (PandocMonad)
 import           Text.Pandoc.Definition
 import           Text.Pandoc.Options        (WriterOptions (..))
+import           Text.Pandoc.SCDoc.Link     (isExternalUrl, linkHasAnchor,
+                                             normalizeImageTarget,
+                                             normalizeLinkTarget,
+                                             shouldOmitLinkLabel)
 import           Text.Pandoc.Shared         (stringify)
 import           Text.Pandoc.Templates      (renderTemplate)
 import           Text.Pandoc.Walk           (query)
@@ -82,13 +86,16 @@ renderCore meta blocks =
       insertAutoAnchors localAnchorTargets methodContextBlocks
     renderableBlocks       = insertKeywordBlocks meta autoAnchoredBlocks
 
--- | Treat a heading named "warning" as a one-block SCDoc warning directive.
+-- | Turn a plain heading named @warning@ into a one-block
+-- @warning::@ directive. Explicit SCDoc structural headings are left
+-- alone, so @method:: warning@ remains a method.
 rewriteWarningHeadingDirectives :: [Block] -> [Block]
 rewriteWarningHeadingDirectives = rewrite
   where
     rewrite [] = []
     rewrite (Header _ (ident, classes, kvs) xs : rest)
-      | isWarningHeading xs =
+      | isWarningHeading xs
+      , not (isStructuralHeadingClass classes) =
           let (warningBody, remainingBlocks) = splitWarningBodyBlock rest
               warningClasses                 = if hasClass "warning" classes
                                                then classes
@@ -99,9 +106,26 @@ rewriteWarningHeadingDirectives = rewrite
 
     isWarningHeading xs = normalizeKeyword (plainText xs) == "warning"
 
-    splitWarningBodyBlock [] = ([], [])
+    splitWarningBodyBlock []                    = ([], [])
     splitWarningBodyBlock bs@(Header _ _ _ : _) = ([], bs)
-    splitWarningBodyBlock (b : bs) = ([b], bs)
+    splitWarningBodyBlock (b : bs)              = ([b], bs)
+
+
+-- | True when a heading already carries SCDoc meaning or anchor control.
+hasExplicitSCDocClass :: [Text] -> Bool
+hasExplicitSCDocClass cls =
+  isStructuralHeadingClass cls
+  || hasClass "no-anchor" cls
+
+-- | Classes that render as explicit SCDoc declarations. Unlike
+-- 'hasExplicitSCDocClass', this excludes @no-anchor@ so
+-- @## warning {.no-anchor}@ still becomes @warning::@.
+isStructuralHeadingClass :: [Text] -> Bool
+isStructuralHeadingClass cls =
+  any (`hasClass` cls)
+    ["method", "argument", "returns", "discussion", "private",
+     "copymethod", "classtree", "anchor",
+     "section", "subsection", "subsubsection"]
 
 -- | State for method and argument inference.
 data MethodCtx
@@ -137,11 +161,6 @@ inferMethodContext = go OutsideSection
 
     isMethodSection xs =
       normalizeKeyword (plainText xs) `elem` ["classmethods", "instancemethods"]
-
-    hasExplicitSCDocClass cls =
-      any (`hasClass` cls)
-        ["method", "argument", "returns", "discussion", "private",
-         "copymethod", "classtree", "anchor", "no-anchor"]
 
     isKeyword xs = normalize (plainText xs) `elem` ["discussion", "returns"]
 
@@ -222,12 +241,8 @@ extractLeadingOrgMeta meta blocks =
 
 toDocInfoValue :: Text -> Text -> MetaValue
 toDocInfoValue key val
-  | key `elem` ["keyword", "keywords"] =
-      MetaList
-        . fmap (MetaString . T.strip)
-        . filter (not . T.null . T.strip)
-        $ T.splitOn "," val
-  | otherwise = MetaString val
+  | key `elem` ["keyword", "keywords"] = MetaList (map MetaString (splitCsv val))
+  | otherwise                          = MetaString val
 
 combineMeta :: MetaValue -> MetaValue -> MetaValue
 combineMeta (MetaList xs) (MetaList ys) = MetaList (ys <> xs)
@@ -246,14 +261,13 @@ docInfoDefText =
     blockText (LineBlock ls) = oneLine (T.intercalate " " (fmap plainText ls))
     blockText _              = ""
 
--- | Insert @keyword::@ blocks from keyword metadata.
+-- | Insert one @keyword::@ raw block per metadata keyword.
 insertKeywordBlocks :: Meta -> [Block] -> [Block]
 insertKeywordBlocks meta blocks =
   case kws of
     [] -> blocks
     _  -> insertAfterDescription
-            [RawBlock (Format "schelp")
-              (T.intercalate "\n" (fmap ("keyword:: " <>) kws))]
+            [ RawBlock (Format "schelp") ("keyword:: " <> kw) | kw <- kws ]
             blocks
   where
     kws = nub
@@ -267,8 +281,7 @@ insertKeywordBlocks meta blocks =
 
     valueToList (MetaList xs) =
       filter (not . T.null) (map (T.strip . metaValueText) xs)
-    valueToList v =
-      filter (not . T.null . T.strip) . fmap T.strip . T.splitOn "," $ metaValueText v
+    valueToList v = splitCsv (metaValueText v)
 
     insertAfterDescription injected bs =
       case break isDescription bs of
@@ -320,11 +333,15 @@ renderBlocks =
 renderBlock :: Block -> Text
 renderBlock = \case
   Plain xs        -> renderInlines xs
+  -- Markdown display math arrives as a paragraph containing one
+  -- DisplayMath inline; render that as a block-level @math::@ tag.
+  Para [Math DisplayMath s] -> blockTag "math" s
   Para xs         -> renderInlines xs
   LineBlock ls    -> T.intercalate "\n" (fmap renderInlines ls)
 
   RawBlock fmt s
-    | isRawSCDocFormat fmt -> s
+    -- Raw SCDoc blocks own their body; trim the trailing separator.
+    | isRawSCDocFormat fmt -> T.stripEnd s
     | otherwise            -> ""
 
   CodeBlock (_, classes, _) s
@@ -347,7 +364,7 @@ renderBlock = \case
     | hasClass "returns"    classes -> renderReturns attr
     | hasClass "discussion" classes -> "discussion::"
     | hasClass "private"    classes ->
-        "private:: " <> normalizeMethodNames (attrOrHeading ["name"] attr xs)
+        "private:: " <> normalizePrivateNames (attrOrHeading ["name"] attr xs)
     | hasClass "copymethod" classes -> renderCopyMethod attr xs
     | hasClass "classtree"  classes -> "classtree:: " <> attrOrHeading ["name"] attr xs
     | hasClass "anchor"     classes -> modalTag "anchor" (attrOrHeading ["name"] attr xs)
@@ -361,9 +378,33 @@ renderBlock = \case
     "table::\n" <> T.concat (map renderRow (hr <> concatMap bodyRows bodies <> fr)) <> "::"
     where
       bodyRows (TableBody _ _ h r) = h <> r
-      renderRow (Row _ cells) =
-        "## " <> T.intercalate " || " (fmap renderCell cells) <> "\n"
-      renderCell (Cell _ _ _ _ bs) = oneLine (renderBlocks bs)
+
+      -- Use compact rows only for single-line cells. Any block body or
+      -- newline-producing inline needs the multiline cell layout.
+      renderRow (Row _ cells)
+        | not (all (isSimpleCellBlocks . cellBlocks) cells) =
+            "##\n" <> T.intercalate "\n||\n" (fmap renderCellBlock cells) <> "\n"
+        | otherwise =
+            "## " <> T.intercalate " || " (fmap renderCellInline cells) <> "\n"
+
+      cellBlocks (Cell _ _ _ _ bs) = bs
+
+      renderCellInline (Cell _ _ _ _ bs) = oneLine (renderBlocks bs)
+
+      -- Multiline cell layout preserves block and line breaks.
+      renderCellBlock (Cell _ _ _ _ bs) = case bs of
+        [] -> ""
+        _  -> T.stripEnd (renderBlocks bs)
+
+      -- Compact cells must render as one line; otherwise @||@ row
+      -- parsing becomes ambiguous or structure is collapsed.
+      isSimpleCellBlocks []         = True
+      isSimpleCellBlocks [Para xs]  = not (rendersWithNewline xs)
+      isSimpleCellBlocks [Plain xs] = not (rendersWithNewline xs)
+      isSimpleCellBlocks _          = False
+
+      rendersWithNewline :: [Inline] -> Bool
+      rendersWithNewline xs = T.any (== '\n') (renderInlines xs)
 
   Figure _ (Caption _ cap) bs ->
     case bs of
@@ -403,18 +444,21 @@ renderCopyMethod attr xs =
     _                     ->
       case parseCopyMethodLabel (plainText xs) of
         Just (cls, meth) -> copy cls meth
-        Nothing          -> "method:: " <> normalizeMethodNames (plainText xs)
+        -- If the label is not splittable, keep the literal
+        -- @copymethod::@ line instead of inventing a @method::@.
+        Nothing          -> "copymethod:: " <> oneLine (renderInlines xs)
   where
     copy cls meth = "copymethod:: " <> T.strip cls <> " " <> T.strip meth
 
+-- | Parse @Class.method@ or @Class method...@ labels.
 parseCopyMethodLabel :: Text -> Maybe (Text, Text)
 parseCopyMethodLabel label =
   case T.words (T.strip label) of
-    [single]   -> parseDotted single
-    [cls, meth]
+    [single]    -> parseDotted single
+    (cls : ms@(_:_))
       | "." `T.isInfixOf` cls -> Nothing
-      | otherwise             -> Just (cls, meth)
-    _          -> Nothing
+      | otherwise             -> Just (cls, T.unwords ms)
+    _           -> Nothing
   where
     parseDotted t =
       case T.breakOnEnd "." (T.strip t) of
@@ -446,7 +490,8 @@ renderInlines = T.concat . fmap renderInline
 
 renderInline :: Inline -> Text
 renderInline = \case
-  Str s            -> s
+  -- Plain text can contain literal SCDoc delimiters.
+  Str s            -> escapeInline s
   Space            -> " "
   SoftBreak        -> " "
   LineBreak        -> "\n"
@@ -489,12 +534,15 @@ renderLink label (url, _) =
     target = normalizeLinkTarget (T.strip url)
     lab    = T.strip (plainText label)
 
+    -- For anchored links, labels containing @#@ need the unambiguous
+    -- @##@ separator.
     body
-      | shouldOmitLinkLabel target lab = target
-      | T.null target                  = "##" <> lab
-      | isExternalUrl target           = target <> "##" <> lab
-      | linkHasAnchor target           = target <> "#"  <> lab
-      | otherwise                      = target <> "##" <> lab
+      | shouldOmitLinkLabel target lab            = target
+      | T.null target                             = "##" <> lab
+      | isExternalUrl target                      = target <> "##" <> lab
+      | linkHasAnchor target
+      , not ("#" `T.isInfixOf` lab)               = target <> "#"  <> lab
+      | otherwise                                 = target <> "##" <> lab
 
 renderImage :: Attr -> [Inline] -> (Text, Text) -> Text
 renderImage (_, _, kvs) alt (url, _) =
@@ -522,7 +570,19 @@ renderTreeDiv bs =
 -- Tags
 
 modalTag :: Text -> Text -> Text
-modalTag tag s = tag <> "::" <> escapeInline s <> "::"
+modalTag tag s =
+  tag <> "::" <> openSep <> escaped <> closeSep <> "::"
+  where
+    escaped = escapeInline s
+    -- Keep body text from merging with opener/closer @::@. The reader
+    -- strips these separator spaces on re-parse.
+    openSep
+      | not (T.null escaped), T.head escaped == ':'  = " "
+      | otherwise                                    = ""
+    closeSep
+      | "\\" `T.isSuffixOf` escaped                  = " "
+      | ":"  `T.isSuffixOf` escaped                  = " "
+      | otherwise                                    = ""
 
 blockTag :: Text -> Text -> Text
 blockTag tag s = tag <> "::\n" <> escapeBlockBody (T.stripEnd s) <> "\n::"
@@ -532,34 +592,54 @@ rangeTag tag s = tag <> "::\n" <> s <> "\n::"
 
 listTag :: Text -> [[Block]] -> Text
 listTag tag items =
-  tag <> "::\n"
-  <> T.concat [ "## " <> t <> "\n" | item <- items, t <- flattenItem item ]
-  <> "::"
+  tag <> "::\n" <> T.concat (fmap renderListItem items) <> "::"
 
--- | Collect leaf text lines from a list item, flattening nested lists.
--- SCDoc has no nested-list syntax — so we flatten.
-flattenItem :: [Block] -> [Text]
-flattenItem = concatMap go
+-- | Render one list item as a single @##@ entry with a full block body.
+-- Empty rendered items are omitted.
+renderListItem :: [Block] -> Text
+renderListItem item =
+  case body of
+    "" -> ""
+    _  -> "## " <> body <> "\n"
   where
-    go (BulletList    nested) = concatMap flattenItem nested
-    go (OrderedList _ nested) = concatMap flattenItem nested
-    go b =
-      let t = T.strip (renderBlock b)
-      in  [t | not (T.null t)]
+    body = T.intercalate "\n\n"
+         . filter (not . T.null)
+         $ fmap (T.strip . renderBlock) item
 
 stripAdmonitionTitle :: [Block] -> [Block]
 stripAdmonitionTitle (Div (_, cls, _) _ : rest) | hasClass "title" cls = rest
 stripAdmonitionTitle bs = bs
 
+-- | Emit one @defterms BARS optbody@ row. Grouped reader terms share
+-- one body; plain terms with multiple definitions become multiple rows.
 defRow :: ([Inline], [[Block]]) -> Text
-defRow (term, []) =
-  "## " <> oneLine (renderInlines term) <> "\n||\n"
-defRow (term, defs) =
-  T.concat
-    [ "## " <> termText <> "\n|| " <> oneLine (renderBlocks d) <> "\n"
-    | d <- defs
-    ]
-  where termText = oneLine (renderInlines term)
+defRow (term, defs) = case extractDeftermGroup term of
+  Just terms | [body] <- defs ->
+    headers terms <> "|| " <> renderBlocks body <> "\n"
+  Just terms | null defs      ->
+    headers terms <> "||\n"
+  _                           ->
+    if null defs
+      then "## " <> termText <> "\n||\n"
+      else T.concat
+             [ "## " <> termText <> "\n|| " <> renderBlocks d <> "\n"
+             | d <- defs
+             ]
+  where
+    termText  = oneLine (renderInlines term)
+    headers ts = T.concat [ "## " <> oneLine (renderInlines t) <> "\n"
+                          | t <- ts ]
+
+-- | Recognize the reader's multi-term shared-body marker.
+extractDeftermGroup :: [Inline] -> Maybe [[Inline]]
+extractDeftermGroup = go []
+  where
+    go acc [Span (_, cls, _) ts] | hasClass "scdoc-defterm" cls =
+      let result = reverse (ts : acc)
+      in if length result >= 2 then Just result else Nothing
+    go acc (Span (_, cls, _) ts : LineBreak : rest)
+      | hasClass "scdoc-defterm" cls = go (ts : acc) rest
+    go _ _ = Nothing
 
 attrText :: [Text] -> Attr -> Maybe Text
 attrText keys (_, _, kvs) =
@@ -578,66 +658,23 @@ attrOrHeading keys attr@(ident, _, _) xs =
     fallback i ys =
       let r = plainText ys in if T.null r then i else r
 
+-- | Normalize comma-separated @method::@ names, including setter @_@ stripping.
 normalizeMethodNames :: Text -> Text
-normalizeMethodNames =
+normalizeMethodNames = normalizeNames True
+
+-- | Normalize comma-separated @private::@ names without setter @_@ stripping.
+normalizePrivateNames :: Text -> Text
+normalizePrivateNames = normalizeNames False
+
+normalizeNames :: Bool -> Text -> Text
+normalizeNames dropUnderscore =
   T.intercalate ", "
-  . fmap dropSetterUnderscore
-  . filter (not . T.null)
-  . fmap T.strip
-  . T.splitOn ","
+  . fmap (if dropUnderscore then dropSetterUnderscore else id)
+  . splitCsv
   where
     dropSetterUnderscore name
       | T.length name > 1, "_" `T.isSuffixOf` name = T.dropEnd 1 name
       | otherwise                                  = name
-
-shouldOmitLinkLabel :: Text -> Text -> Bool
-shouldOmitLinkLabel target label =
-  T.null label
-  || label == target
-  || (not (linkHasAnchor target) && label == defaultLinkLabel target)
-
-defaultLinkLabel :: Text -> Text
-defaultLinkLabel target =
-  case filter (not . T.null) (T.splitOn "/" (T.takeWhile (/= '#') target)) of
-    [] -> ""
-    xs -> last xs
-
--- | Normalize an internal SCDoc link target.
-normalizeLinkTarget :: Text -> Text
-normalizeLinkTarget target
-  | isExternalUrl target = target
-  | otherwise            = stripKnownExt path <> frag
-  where
-    (path0, frag) = T.breakOn "#" target
-    path          = dropAnyPrefix ["./HelpSource/", "HelpSource/", "./"] path0
-
-normalizeImageTarget :: Text -> Text
-normalizeImageTarget =
-  dropAnyPrefix ["./HelpSource/", "HelpSource/", "./"]
-
-dropAnyPrefix :: [Text] -> Text -> Text
-dropAnyPrefix prefixes s =
-  case [T.drop (T.length p) s | p <- prefixes, p `T.isPrefixOf` s] of
-    (x:_) -> dropAnyPrefix prefixes x
-    []    -> s
-
-stripKnownExt :: Text -> Text
-stripKnownExt s = foldr stripOne s [".schelp", ".md", ".html"]
-  where
-    stripOne ext x
-      | ext `T.isSuffixOf` T.toLower x = T.dropEnd (T.length ext) x
-      | otherwise                      = x
-
-linkHasAnchor :: Text -> Bool
-linkHasAnchor target =
-  not (isExternalUrl target)
-  && "#" `T.isInfixOf` target
-  && not ("##" `T.isInfixOf` target)
-
-isExternalUrl :: Text -> Bool
-isExternalUrl x =
-  any (`T.isPrefixOf` T.toLower x)
-    ["http://", "https://", "ftp://", "mailto:", "file://"]
 
 -- Utils
 
@@ -653,6 +690,10 @@ isRawSCDocFormat (Format f) = T.toLower f `elem` ["schelp", "scdoc"]
 oneLine :: Text -> Text
 oneLine = T.unwords . T.words
 
+-- | Split @a, b, c@ into trimmed, non-empty fields.
+splitCsv :: Text -> [Text]
+splitCsv = filter (not . T.null) . fmap T.strip . T.splitOn ","
+
 plainText :: [Inline] -> Text
 plainText = oneLine . stringify
 
@@ -665,12 +706,27 @@ normalize = T.toLower . oneLine
 normalizeKeyword :: Text -> Text
 normalizeKeyword = T.filter (/= ' ') . normalize
 
+-- | Escape inline modal bodies for the reader's verbatim unescapes.
+-- Backslash-prefixed escapes must be doubled before @::@ is escaped.
 escapeInline :: Text -> Text
-escapeInline = T.replace "::" "\\::"
+escapeInline =
+    T.replace "::"   "\\::"
+  . T.replace "\\##" "\\\\##"
+  . T.replace "\\||" "\\\\||"
 
+-- | Escape block modal bodies. Lines that are exactly @::@ must be
+-- escaped because they close the block.
+--
+-- Limitation: SCDoc cannot preserve block-body lines whose first
+-- non-whitespace text is @\\::@; the lexer consumes that as an
+-- escaped close.
 escapeBlockBody :: Text -> Text
 escapeBlockBody =
-  T.intercalate "\n" . fmap escape . T.splitOn "\n"
+    T.intercalate "\n"
+  . fmap escapeLine
+  . T.splitOn "\n"
+  . T.replace "\\##" "\\\\##"
+  . T.replace "\\||" "\\\\||"
   where
-    escape line | T.strip line == "::" = "\\::"
-                | otherwise            = line
+    escapeLine line | T.strip line == "::" = "\\::"
+                    | otherwise            = line

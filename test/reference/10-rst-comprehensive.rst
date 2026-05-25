@@ -128,7 +128,9 @@ A raw SCDoc block:
 
 .. raw:: schelp
 
-   note:: This passes through unchanged. ::
+   note::
+   This passes through unchanged.
+   ::
 
 A table:
 

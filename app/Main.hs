@@ -13,6 +13,7 @@ import           Text.Pandoc.Error         (PandocError (..), handleError)
 import           Text.Pandoc.Extensions    (Extension (Ext_smart), disableExtension)
 import           Text.Pandoc.Format        (parseFlavoredFormat)
 import           Text.Pandoc.Options       (ReaderOptions (..))
+import           Text.Pandoc.Readers.SCDoc (readSCDoc)
 import           Text.Pandoc.Writers.SCDoc (writeSCDoc)
 
 main :: IO ()
@@ -20,14 +21,20 @@ main = do
   (fmt, mpath) <- parseArgs
   input <- maybe TIO.getContents TIO.readFile mpath
   result <- runIO $ do
-    flavored        <- parseFlavoredFormat fmt
-    (reader, exts) <- getReader flavored
-    let ropts = def { readerExtensions = disableExtension Ext_smart exts }
-    doc <- case reader of
-      TextReader         r -> r ropts input
-      ByteStringReader   _ -> throwError (PandocAppError "binary input formats are not supported")
+    doc <- if isSCDocFormat fmt
+      then readSCDoc def input
+      else do
+        flavored        <- parseFlavoredFormat fmt
+        (reader, exts) <- getReader flavored
+        let ropts = def { readerExtensions = disableExtension Ext_smart exts }
+        case reader of
+          TextReader       r -> r ropts input
+          ByteStringReader _ -> throwError (PandocAppError "binary input formats are not supported")
     writeSCDoc def doc
   TIO.putStr =<< handleError result
+
+isSCDocFormat :: T.Text -> Bool
+isSCDocFormat fmt = T.toLower fmt `elem` ["schelp", "scdoc"]
 
 parseArgs :: IO (T.Text, Maybe FilePath)
 parseArgs = getArgs >>= \case
