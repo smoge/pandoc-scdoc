@@ -334,13 +334,17 @@ Markdown block quotes become SCDoc notes:
 > Boot the server before you run the sound. No server, no signal, yo.
 ```
 
-Class `.warning` blocks become `warning:: ... ::` blocks:
+Headings named `warning` become `warning:: ... ::` blocks. The heading match
+is case-insensitive, and the warning body is the next block after the heading:
 
 ```markdown
-::: {.warning}
+## warning
+
 Naive oscillators can alias when pushed hard above the comfortable range.
-:::
 ```
+
+Class `.warning` blocks are also supported when you need an explicit Pandoc
+attribute form.
 
 Other formats have their own way:
 

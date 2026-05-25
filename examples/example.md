@@ -151,11 +151,11 @@ A note, written as a Markdown block quote:
 
 > Boot the server before you run the sound. No server, no signal.
 
-A warning div, using Pandoc's `fenced_divs` extension:
+A warning block opened by a heading named `warning`.
 
-::: {.warning}
+## warning
+
 Naive oscillators can alias when pushed hard above the comfortable range.
-:::
 
 A nested list. Inner items are promoted to sibling `##` entries because
 SCDoc has no nested list syntax:

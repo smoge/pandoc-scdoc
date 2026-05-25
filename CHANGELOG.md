@@ -27,9 +27,10 @@
 - Tables are rendered as SCDoc `table::` blocks.
 
 - Notes and warnings map directly to SCDoc range tags. Blockquotes become
-  `note::` range tags; `{.note}` and `{.warning}` divs, including RST
-  `.. note::` and `.. warning::` blocks, map to the corresponding SCDoc
-  range tags.
+  `note::` range tags; headings named `warning` wrap the following block in a
+  `warning::` range; `{.note}` and `{.warning}` divs, including RST
+  `.. note::` and `.. warning::` blocks, map to the corresponding SCDoc range
+  tags.
 
 - Raw SCDoc pass-through is supported for markup the converter should preserve
   rather than reinterpret. Fenced code blocks and raw inline spans tagged

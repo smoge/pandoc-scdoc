@@ -129,11 +129,11 @@ A note (block quote):
 
 > This is a note.
 
-A warning div (requires Pandoc's `fenced_divs` extension):
+A warning block opened by a heading named `warning`.
 
-::: {.warning}
+## warning
+
 This is a warning.
-:::
 
 A definition list:
 

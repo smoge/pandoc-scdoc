@@ -131,7 +131,7 @@ note::
 This is a note.
 ::
 
-A warning div (requires Pandoc’s code::fenced_divs:: extension):
+A warning block opened by a heading named code::warning::.
 
 warning::
 This is a warning.

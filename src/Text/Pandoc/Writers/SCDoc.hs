@@ -72,13 +72,36 @@ renderCore :: Meta -> [Block] -> Text
 renderCore meta blocks =
   T.intercalate "\n" (scHeader meta)
   <> "\n\n"
-  <> renderBlocks blocksWithMetadata
+  <> renderBlocks renderableBlocks
   <> "\n"
   where
-    inferred           = inferMethodContext blocks
-    referenced         = referencedLocalAnchors inferred
-    blocksWithAnchors  = insertReferencedHeadingAnchors referenced inferred
-    blocksWithMetadata = insertKeywordBlocks meta blocksWithAnchors
+    warningDirectiveBlocks = rewriteWarningHeadingDirectives blocks
+    methodContextBlocks    = inferMethodContext warningDirectiveBlocks
+    localAnchorTargets     = collectLocalAnchorTargets methodContextBlocks
+    autoAnchoredBlocks     =
+      insertAutoAnchors localAnchorTargets methodContextBlocks
+    renderableBlocks       = insertKeywordBlocks meta autoAnchoredBlocks
+
+-- | Treat a heading named "warning" as a one-block SCDoc warning directive.
+rewriteWarningHeadingDirectives :: [Block] -> [Block]
+rewriteWarningHeadingDirectives = rewrite
+  where
+    rewrite [] = []
+    rewrite (Header _ (ident, classes, kvs) xs : rest)
+      | isWarningHeading xs =
+          let (warningBody, remainingBlocks) = splitWarningBodyBlock rest
+              warningClasses                 = if hasClass "warning" classes
+                                               then classes
+                                               else classes ++ ["warning"]
+          in  Div (ident, warningClasses, kvs) (rewrite warningBody)
+              : rewrite remainingBlocks
+    rewrite (b : rest) = b : rewrite rest
+
+    isWarningHeading xs = normalizeKeyword (plainText xs) == "warning"
+
+    splitWarningBodyBlock [] = ([], [])
+    splitWarningBodyBlock bs@(Header _ _ _ : _) = ([], bs)
+    splitWarningBodyBlock (b : bs) = ([b], bs)
 
 -- | State for method and argument inference.
 data MethodCtx
@@ -257,8 +280,8 @@ insertKeywordBlocks meta blocks =
     isDescription _ = False
 
 -- | Collect anchor names from local @#anchor@ links in the document.
-referencedLocalAnchors :: [Block] -> [Text]
-referencedLocalAnchors blocks = Set.toList (query extractAnchor blocks)
+collectLocalAnchorTargets :: [Block] -> [Text]
+collectLocalAnchorTargets blocks = Set.toList (query extractAnchor blocks)
   where
     extractAnchor :: Inline -> Set.Set Text
     extractAnchor (Link _ _ (url, _)) =
@@ -272,8 +295,8 @@ referencedLocalAnchors blocks = Set.toList (query extractAnchor blocks)
 -- | Insert an @anchor::name::@ tag after each heading referenced by a local
 -- link. Headings get tagged only when something points to them — no orphan
 -- anchors.
-insertReferencedHeadingAnchors :: [Text] -> [Block] -> [Block]
-insertReferencedHeadingAnchors targets =
+insertAutoAnchors :: [Text] -> [Block] -> [Block]
+insertAutoAnchors targets =
   concatMap insertOne
   where
     targetSet = Set.fromList (fmap T.strip targets)
