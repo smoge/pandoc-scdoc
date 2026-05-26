@@ -23,31 +23,12 @@ don't go deep. Not a mirror, a bridge.
 
 ## Build and run
 
-With Just:
-```sh
-just cabal-build
-just run-md
-just run-org
-just run-rst
-```
-
-With Stack:
 ```sh
 stack build
 mkdir -p output
-stack exec pandoc-scdoc -- examples/example.md > output/markdown.schelp
-stack exec pandoc-scdoc -- -f org examples/example.org > output/org.schelp
-stack exec pandoc-scdoc -- -f rst examples/example.rst > output/rst.schelp
-```
-
-With Cabal:
-```sh
-cabal build exe:pandoc-scdoc
-mkdir -p output
-bin="$(cabal list-bin exe:pandoc-scdoc)"
-"$bin" examples/example.md > output/markdown.schelp
-"$bin" -f org examples/example.org > output/org.schelp
-"$bin" -f rst examples/example.rst > output/rst.schelp
+stack run -- examples/example.md > output/markdown.schelp
+stack run -- -f org examples/example.org > output/org.schelp
+stack run -- -f rst examples/example.rst > output/rst.schelp
 ```
 
 ## Tests
