@@ -16,20 +16,6 @@ grammar. It parses every file in SuperCollider's `HelpSource` corpus
 read -> write -> read (the residual is a documented leading-whitespace
 quirk in `Overviews/JITLib.schelp`).
 
-```haskell
-import Text.Pandoc.Readers.SCDoc
-
--- In PandocMonad
-doc    <- readSCDoc def text
-
--- Pure entry point; failures surface as Left.
-case readSCDocPure text of
-  Left  err -> ...
-  Right pd  -> ...
-```
-
-[upstream-scdoc]: https://github.com/supercollider/supercollider/tree/develop/SCDoc
-
 Other Pandoc-supported formats may work to the extent their AST maps to the
 supported nodes. The mapping is not one-to-one. SCDoc has its own constraints:
 modal tags cannot nest, method and argument structure is tag-based, and lists
@@ -65,12 +51,6 @@ bin="$(cabal list-bin exe:pandoc-scdoc)"
 ```
 
 ## Tests
-
-Run the normal suite with:
-
-```sh
-cabal test pandoc-scdoc-test
-```
 
 Corpus smoke tests are not part of the normal suite. The `just` corpus
 recipes set `SCDOC_HELPSOURCE` from the `helpsource` variable in `justfile`;
